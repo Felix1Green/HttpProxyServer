@@ -5,17 +5,18 @@ import (
 	"log"
 )
 
-type ProxyConfig struct{
-	Port string
+type ProxyConfig struct {
+	ProxyPort    string
+	UIPort       string
 	CertFilePath string
-	KeyFilePath string
+	KeyFilePath  string
 }
 
-
 func GetConfig(configPath string) (*ProxyConfig, error) {
-	if configPath == ""{
+	if configPath == "" {
 		return &ProxyConfig{
 			":8000",
+			":8080",
 			"",
 			"",
 		}, nil
@@ -29,7 +30,8 @@ func GetConfig(configPath string) (*ProxyConfig, error) {
 	}
 
 	config := new(ProxyConfig)
-	config.Port = viper.GetString("Port")
+	config.ProxyPort = viper.GetString("Port")
+	config.UIPort = viper.GetString("UIPort")
 	config.KeyFilePath = viper.GetString("KeyFile")
 	config.CertFilePath = viper.GetString("CertFile")
 
