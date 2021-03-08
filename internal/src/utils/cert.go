@@ -1,9 +1,8 @@
 package utils
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -27,7 +26,7 @@ const (
 )
 
 var (
-	connectionEstablishedResponse = []byte("HTTP/1.1 200 Connection established\\r\\n\\r\\n")
+	connectionEstablishedResponse = []byte("HTTP/1.1 200 OK\r\n\r\n")
 )
 
 func GenerateCert(c *tls.Certificate, names []string) (*tls.Certificate, error) {
@@ -48,24 +47,22 @@ func GenerateCert(c *tls.Certificate, names []string) (*tls.Certificate, error) 
 		KeyUsage:              leafUsage,
 		BasicConstraintsValid: true,
 		DNSNames:              names,
-		SignatureAlgorithm:    x509.ECDSAWithSHA512,
+		SignatureAlgorithm:    x509.SHA256WithRSA,
 	}
-
-	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
-
 	rawCert, err := x509.CreateCertificate(rand.Reader, tmpCert, c.Leaf, key.Public(), c.PrivateKey)
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
-
 	cert := new(tls.Certificate)
 	cert.PrivateKey = c.PrivateKey
 	cert.Certificate = append(cert.Certificate, rawCert)
 	cert.Leaf, _ = x509.ParseCertificate(rawCert)
-
 	return cert, nil
 }
 
@@ -80,13 +77,14 @@ func HandleHandshake(w http.ResponseWriter, config *tls.Config) (*tls.Conn, erro
 		log.Println("cannot write connection established response to client")
 		return nil, err
 	}
-
 	clientConn := tls.Server(rawConn, config)
+	log.Println("before hand")
 	err = clientConn.Handshake()
 	if err != nil {
 		_ = clientConn.Close()
 		_ = rawConn.Close()
 		return nil, err
 	}
+	log.Println("after hand")
 	return clientConn, nil
 }

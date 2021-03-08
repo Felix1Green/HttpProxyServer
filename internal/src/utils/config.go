@@ -17,8 +17,8 @@ func GetConfig(configPath string) (*ProxyConfig, error) {
 		return &ProxyConfig{
 			":8000",
 			":8080",
-			"",
-			"",
+			"certs/RootCA.pem",
+			"certs/RootCA.key",
 		}, nil
 	}
 

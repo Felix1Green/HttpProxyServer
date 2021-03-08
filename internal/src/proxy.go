@@ -22,8 +22,12 @@ func (t *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		t.serveSecureConnect(w, r)
 	}
 
-	proxy := httputil.ReverseProxy{}
-
+	proxy := httputil.ReverseProxy{
+		Director: func (r *http.Request) {
+			r.URL.Host = r.Host
+			r.URL.Scheme = "http"
+		},
+	}
 	proxy.ServeHTTP(w, r)
 }
 
@@ -34,10 +38,9 @@ func (t *ProxyHandler) serveSecureConnect(w http.ResponseWriter, r *http.Request
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-
 	nameCert, err := utils.GenerateCert(t.Cert, []string{dnsName})
 	if err != nil {
-		log.Println("cannot create cert for name:", nameCert)
+		log.Println("cannot create cert for name:", dnsName)
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
@@ -48,21 +51,21 @@ func (t *ProxyHandler) serveSecureConnect(w http.ResponseWriter, r *http.Request
 	serviceConfig.GetCertificate = func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		clientConfig := new(tls.Config)
 		clientConfig.ServerName = clientHello.ServerName
-		serviceConnection, err = tls.Dial("tcp", clientConfig.ServerName, clientConfig)
+		serviceConnection, err = tls.Dial("tcp", r.Host, clientConfig)
 		if err != nil {
-			log.Println("cannot handle tls handshake with server:", clientHello.ServerName)
+			log.Println("cannot handle tls handshake with server:", r.Host)
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return nil, err
 		}
 		return utils.GenerateCert(t.Cert, []string{clientHello.ServerName})
 	}
-
 	clientConnection, err := utils.HandleHandshake(w, serviceConfig)
 	if err != nil {
-		log.Println("cannot handle tls handshake with client")
+		log.Println("cannot handle tls handshake with client", err.Error())
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
+	log.Println("after hand ")
 	defer func() {
 		_ = clientConnection.Close()
 		if serviceConnection != nil {
@@ -77,6 +80,10 @@ func (t *ProxyHandler) serveSecureConnect(w http.ResponseWriter, r *http.Request
 	}
 
 	proxy := httputil.ReverseProxy{
+		Director: func (r *http.Request) {
+				r.URL.Host = r.Host
+				r.URL.Scheme = "https"
+			},
 		Transport: &http.Transport{
 			DialTLSContext: func(ctx context.Context, network string, addr string) (net.Conn, error) {
 				t.Mu.Lock()
@@ -90,6 +97,6 @@ func (t *ProxyHandler) serveSecureConnect(w http.ResponseWriter, r *http.Request
 				return c, nil
 			}},
 	}
-
+	log.Println("im here")
 	proxy.ServeHTTP(w, r)
 }

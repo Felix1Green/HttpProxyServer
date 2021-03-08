@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"github.com/Felix1Green/HttpProxyServer/internal/src"
 	"github.com/Felix1Green/HttpProxyServer/internal/src/utils"
 	"log"
@@ -26,5 +27,8 @@ func main() {
 
 func loadCert(certFile, keyFile string) (tls.Certificate, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err == nil{
+		cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+	}
 	return cert, err
 }
